@@ -287,7 +287,164 @@ kubectl describe clusterrole <role-name>
 
 Check the Kubernetes API server's audit logs to see if any access attempts are being denied due to RBAC issues. These logs may provide additional context on why access is being blocked.
 
+Here’s an expanded section to include the creation of tokens for the three roles, configuring the `kubeconfig.yml` with certificate and token authentication details, and spinning up VMs to test the access.
+
+---
+
+## Creating Tokens for Service Accounts
+
+To allow service accounts to authenticate with Kubernetes, you need to create a token for each service account. These tokens can then be used for authentication in your `kubeconfig.yml` file.
+
+### 1. **Create Tokens for Admin, General, and Viewer Service Accounts**
+
+Run the following commands to create a token for each service account:
+
+```bash
+# Create token for admin service account
+kubectl create token admin-service-account -n default
+
+# Create token for general service account
+kubectl create token general-service-account -n default
+
+# Create token for viewer service account
+kubectl create token viewer-service-account -n default
+```
+
+This will output tokens that you can use for each service account. Keep these tokens secure as they will allow access to the Kubernetes cluster.
+
+## Configuring `kubeconfig.yml` with Certificate and Token Authentication
+
+### 2. **Update `kubeconfig.yml` with Certificate Authentication**
+
+To authenticate with the Kubernetes cluster, you can use either **certificate-based authentication** or **token-based authentication**. Below is an example of how you would configure both for the Admin, General, and Viewer roles.
+
+#### Example `kubeconfig.yml` File
+
+```yaml
+apiVersion: v1
+kind: Config
+clusters:
+- name: kubernetes-cluster
+  cluster:
+    certificate-authority-data: <base64-ca-cert>
+    server: https://<master-node-ip>:6443
+users:
+- name: admin-user
+  user:
+    token: <admin-token>
+- name: general-user
+  user:
+    token: <general-token>
+- name: viewer-user
+  user:
+    token: <viewer-token>
+contexts:
+- name: admin-context
+  context:
+    cluster: kubernetes-cluster
+    user: admin-user
+- name: general-context
+  context:
+    cluster: kubernetes-cluster
+    user: general-user
+- name: viewer-context
+  context:
+    cluster: kubernetes-cluster
+    user: viewer-user
+current-context: admin-context
+```
+
+Replace the following placeholders:
+- `<base64-ca-cert>`: The base64-encoded certificate authority (CA) certificate. You can get the CA certificate from your Kubernetes master node.
+- `<master-node-ip>`: The IP address of your Kubernetes master node.
+- `<admin-token>`, `<general-token>`, `<viewer-token>`: The tokens you generated for each service account.
+
+### 3. **Obtain the CA Certificate**
+
+To get the CA certificate for your Kubernetes cluster, run the following command on the master node:
+
+```bash
+cat /etc/kubernetes/pki/ca.crt | base64 -w 0
+```
+
+This will provide the base64-encoded CA certificate, which you can then paste into the `kubeconfig.yml` file.
+
+## Spinning up Virtual Machines (VMs) and Testing Access
+
+### 4. **Spin up 3 VMs for Each Role**
+
+To test the access for each service account, you can spin up three virtual machines (VMs). Each VM will simulate a user with one of the roles.
+
+You can use any cloud provider or virtual machine manager (such as **AWS EC2**, **Google Cloud Compute Engine**, or **VirtualBox**) to create the VMs. Here’s an example of how to create a VM using Google Cloud Platform (GCP):
+
+```bash
+# Spin up an Admin VM
+gcloud compute instances create admin-vm --image-family=debian-11 --image-project=debian-cloud --zone=us-central1-a
+
+# Spin up a General VM
+gcloud compute instances create general-vm --image-family=debian-11 --image-project=debian-cloud --zone=us-central1-a
+
+# Spin up a Viewer VM
+gcloud compute instances create viewer-vm --image-family=debian-11 --image-project=debian-cloud --zone=us-central1-a
+```
+
+### 5. **Configure Access for Each VM**
+
+Once the VMs are created, connect to each VM and copy the respective `kubeconfig.yml` file onto each instance.
+
+#### Admin VM
+
+On the **Admin VM**, you would copy the `kubeconfig.yml` file with the `admin-token` and set it as the KUBECONFIG environment variable:
+
+```bash
+export KUBECONFIG=/path/to/admin-kubeconfig.yml
+kubectl get pods --all-namespaces
+```
+
+This VM should be able to list all pods and resources across namespaces.
+
+#### General VM
+
+On the **General VM**, copy the `kubeconfig.yml` with the `general-token`:
+
+```bash
+export KUBECONFIG=/path/to/general-kubeconfig.yml
+kubectl get pods --all-namespaces
+```
+
+This VM should be able to view pods but may not be able to modify them.
+
+#### Viewer VM
+
+On the **Viewer VM**, copy the `kubeconfig.yml` with the `viewer-token`:
+
+```bash
+export KUBECONFIG=/path/to/viewer-kubeconfig.yml
+kubectl get pods --all-namespaces
+```
+
+This VM should only be able to view resources and should not have access to create, update, or delete them.
+
+### 6. **Verify Access**
+
+To verify that the access control is working as expected:
+
+- On the **Admin VM**, you should be able to run full commands to access, create, and delete resources.
+- On the **General VM**, you should be able to view and modify resources like **pods** and **deployments**, but not **roles** or **cluster roles**.
+- On the **Viewer VM**, you should only be able to list resources but not make any modifications.
+
+### 7. **Troubleshoot Permissions**
+
+If any of the VMs encounter issues accessing resources, follow these troubleshooting steps:
+
+- **Check the Kubeconfig**: Ensure the correct token is being used for each service account.
+- **Review RBAC Policies**: Ensure the service accounts are properly bound to the correct roles and role bindings.
+- **Check Logs**: Review the Kubernetes logs for any access denials related to the service accounts.
+
+---
+
 ## Conclusion
 
-RBAC roles in Kubernetes help manage user and service account permissions efficiently. By defining roles like **Admin**, **General**, and **Viewer**, you can control access to resources in the cluster. Understanding how to create roles, bind them to service accounts, and troubleshoot common issues will ensure smooth cluster operation and security.
+By following this guide, you have created three distinct RBAC roles for Admin, General, and Viewer access in Kubernetes. You have configured `kubeconfig.yml` with both certificate and token-based authentication, and spin up VMs to test the access for each role. The troubleshooting section helps ensure that permissions are correctly set and gives you tools to debug any access issues.
+
 
