@@ -255,12 +255,7 @@ kubectl apply -f global-viewer-clusterrolebinding.yaml
 
 - **Test user access**:  
   ```bash  
-  kubectl auth can-i <action> <resource> --as <user> [-n <namespace>]  
-  ```  
-
----
-
-With this setup, you can manage permissions effectively for all your Kubernetes users based on their roles. 🚀  
+  kubectl auth can-i <action> <resource> --as <user> [-n <namespace>]   
   ```
 
 ---
