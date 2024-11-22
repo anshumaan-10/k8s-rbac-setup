@@ -1,228 +1,266 @@
-# Kubernetes RBAC Setup Guide
+# Kubernetes RBAC Setup Guide  
 
-This guide details how to set up **Role-Based Access Control (RBAC)** in a Kubernetes cluster to efficiently manage permissions and control access to resources. RBAC is a fundamental security feature in Kubernetes that allows you to define granular access control for users and service accounts. Follow along to learn how to create **Roles**, **ClusterRoles**, **RoleBindings**, and **ClusterRoleBindings**.
-
----
-
-## 📜 Prerequisites
-
-Before starting, ensure:
-- You have **kubectl** installed and configured.
-- Access to a Kubernetes cluster with administrative privileges.
+This guide demonstrates how to configure **Role-Based Access Control (RBAC)** in a Kubernetes cluster to provide fine-grained access to resources based on user roles. We’ll set up access for multiple users (`Anshumaan`, `Ashutosh`, `Sai Krishna`, and `Khagendra Thapa`) based on organizational roles such as **Admin**, **Editor**, and **Viewer**.  
 
 ---
 
-## 🛠️ Role: **Namespace-Scoped Permissions**
+## 🛠️ Objectives  
 
-A **Role** provides permissions within a specific namespace. Below is an example YAML configuration for a Role named **pod-reader** that allows the user to:
-- `get`
-- `watch`
-- `list`
-
-**`role.yaml`**:
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: default
-  name: pod-reader
-rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "watch", "list"]
-```
-
-### Apply the Role:
-```bash
-kubectl apply -f role.yaml
-```
-
-### Verify the Role:
-```bash
-kubectl get role -n default
-```
+- Create roles with different access levels.  
+- Assign broader permissions to an **Admin**, moderate permissions to an **Editor**, and read-only permissions to a **Viewer**.  
+- Demonstrate namespace-specific and cluster-wide access control.  
 
 ---
 
-## 🔗 RoleBinding: **Binding Users to a Role**
+## 🌐 User Roles  
 
-A **RoleBinding** associates a user with a specific Role within a namespace. In this example, the **pod-reader** Role is assigned to the user **Anshumaan**.
-
-**`rolebinding.yaml`**:
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: read-pods
-  namespace: default
-subjects:
-- kind: User
-  name: Anshumaan
-  apiGroup: rbac.authorization.k8s.io
-roleRef:
-  kind: Role
-  name: pod-reader
-  apiGroup: rbac.authorization.k8s.io
-```
-
-### Apply the RoleBinding:
-```bash
-kubectl apply -f rolebinding.yaml
-```
-
-### Verify the RoleBinding:
-```bash
-kubectl get rolebinding -n default
-```
-
-### Test Permissions for **Anshumaan**:
-```bash
-kubectl auth can-i get pod --as Anshumaan -n default
-```
+1. **Anshumaan**: **Admin**  
+   - Has full access to all resources in the cluster.  
+2. **Ashutosh**: **Editor**  
+   - Can view and edit resources in a specific namespace.  
+3. **Sai Krishna**: **Viewer**  
+   - Can only view resources in a specific namespace.  
+4. **Khagendra Thapa**: **Viewer**  
+   - Cluster-wide read-only access.  
 
 ---
 
-## 🌐 ClusterRole: **Cluster-Wide Permissions**
+## 🔐 Configuration  
 
-A **ClusterRole** grants permissions that apply across all namespaces. Below, the **secret-reader** ClusterRole allows users to:
-- `get`
-- `watch`
-- `list` secrets.
+### 1. **ClusterRole for Admin**  
+The **Admin** has full access across the cluster.  
 
-**`clusterrole.yaml`**:
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: secret-reader
-rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get", "watch", "list"]
-```
+**`admin-clusterrole.yaml`**:  
+```yaml  
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: ClusterRole  
+metadata:  
+  name: cluster-admin-role  
+rules:  
+- apiGroups: ["*"]  
+  resources: ["*"]  
+  verbs: ["*"]  
+```  
 
-### Apply the ClusterRole:
-```bash
-kubectl apply -f clusterrole.yaml
-```
+**ClusterRoleBinding for Anshumaan (Admin)**:  
+**`admin-clusterrolebinding.yaml`**:  
+```yaml  
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: ClusterRoleBinding  
+metadata:  
+  name: admin-access-global  
+subjects:  
+- kind: User  
+  name: Anshumaan  
+  apiGroup: rbac.authorization.k8s.io  
+roleRef:  
+  kind: ClusterRole  
+  name: cluster-admin-role  
+  apiGroup: rbac.authorization.k8s.io  
+```  
 
-### Verify the ClusterRole:
-```bash
-kubectl get clusterrole
-```
-
----
-
-## 🔗 RoleBinding (Namespace-Level): **Binding Users to a ClusterRole**
-
-A **RoleBinding** can bind a ClusterRole to a specific namespace. Below, the **secret-reader** ClusterRole is assigned to **Anshu** within the `development` namespace.
-
-**`rolebinding-namespace.yaml`**:
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: read-secrets
-  namespace: development
-subjects:
-- kind: User
-  name: Anshu
-  apiGroup: rbac.authorization.k8s.io
-roleRef:
-  kind: ClusterRole
-  name: secret-reader
-  apiGroup: rbac.authorization.k8s.io
-```
-
-### Apply the RoleBinding:
-```bash
-kubectl apply -f rolebinding-namespace.yaml
-```
-
-### Verify the RoleBinding:
-```bash
-kubectl get rolebinding -n development
-```
-
-### Test Permissions for **Anshu**:
-```bash
-kubectl auth can-i get secret --as Anshu -n development
-```
+### Apply Commands:  
+```bash  
+kubectl apply -f admin-clusterrole.yaml  
+kubectl apply -f admin-clusterrolebinding.yaml  
+```  
 
 ---
 
-## 🌍 ClusterRoleBinding: **Global Access for Users**
+### 2. **Role for Editor (Namespace-Specific)**  
+The **Editor** has access to modify resources in the `development` namespace.  
 
-A **ClusterRoleBinding** associates a ClusterRole with a user across all namespaces. Here, **Anshumaan** is bound to the **secret-reader** ClusterRole, granting global access to secrets.
+**`editor-role.yaml`**:  
+```yaml  
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: Role  
+metadata:  
+  namespace: development  
+  name: editor-role  
+rules:  
+- apiGroups: [""]  
+  resources: ["pods", "services", "deployments"]  
+  verbs: ["get", "list", "create", "update", "delete"]  
+```  
 
-**`clusterrolebinding.yaml`**:
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: read-secrets-global
-subjects:
-- kind: User
-  name: Anshumaan
-  apiGroup: rbac.authorization.k8s.io
-roleRef:
-  kind: ClusterRole
-  name: secret-reader
-  apiGroup: rbac.authorization.k8s.io
-```
+**RoleBinding for Ashutosh (Editor)**:  
+**`editor-rolebinding.yaml`**:  
+```yaml  
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: RoleBinding  
+metadata:  
+  name: editor-access  
+  namespace: development  
+subjects:  
+- kind: User  
+  name: Ashutosh  
+  apiGroup: rbac.authorization.k8s.io  
+roleRef:  
+  kind: Role  
+  name: editor-role  
+  apiGroup: rbac.authorization.k8s.io  
+```  
 
-### Apply the ClusterRoleBinding:
-```bash
-kubectl apply -f clusterrolebinding.yaml
-```
-
-### Verify the ClusterRoleBinding:
-```bash
-kubectl get clusterrolebinding
-```
-
-### Test Permissions for **Anshumaan**:
-```bash
-kubectl auth can-i get secret --as Anshumaan -A
-```
-
----
-
-## 🎯 Best Practices and Additional Tips
-
-1. **Follow the Principle of Least Privilege**: Always grant the minimum permissions required for a task.
-2. **Organize Resources**:
-   - Use namespaces to separate environments (e.g., `dev`, `staging`, `prod`).
-   - Bind users and service accounts to specific namespaces.
-3. **Test Permissions**:
-   - Use `kubectl auth can-i` commands to verify access levels.
-   - Regularly audit RBAC configurations to avoid privilege escalation.
-4. **Leverage Service Accounts**:
-   - For applications running inside the cluster, bind Roles to Service Accounts instead of individual users.
+### Apply Commands:  
+```bash  
+kubectl apply -f editor-role.yaml  
+kubectl apply -f editor-rolebinding.yaml  
+```  
 
 ---
 
-## 🛡️ Common Commands for RBAC Management
+### 3. **Role for Viewer (Namespace-Specific)**  
+The **Viewer** can only view resources in the `staging` namespace.  
 
-- **List all Roles in a namespace**:
-  ```bash
-  kubectl get role -n <namespace>
-  ```
-- **List all ClusterRoles**:
-  ```bash
-  kubectl get clusterrole
-  ```
-- **List all RoleBindings in a namespace**:
-  ```bash
-  kubectl get rolebinding -n <namespace>
-  ```
-- **List all ClusterRoleBindings**:
-  ```bash
-  kubectl get clusterrolebinding
-  ```
-- **Debug a user’s permissions**:
-  ```bash
-  kubectl auth can-i <action> <resource> --as <user> [-n <namespace>]
+**`viewer-role.yaml`**:  
+```yaml  
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: Role  
+metadata:  
+  namespace: staging  
+  name: viewer-role  
+rules:  
+- apiGroups: [""]  
+  resources: ["pods", "services", "deployments"]  
+  verbs: ["get", "list"]  
+```  
+
+**RoleBinding for Sai Krishna (Viewer)**:  
+**`viewer-rolebinding.yaml`**:  
+```yaml  
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: RoleBinding  
+metadata:  
+  name: viewer-access  
+  namespace: staging  
+subjects:  
+- kind: User  
+  name: Sai Krishna  
+  apiGroup: rbac.authorization.k8s.io  
+roleRef:  
+  kind: Role  
+  name: viewer-role  
+  apiGroup: rbac.authorization.k8s.io  
+```  
+
+### Apply Commands:  
+```bash  
+kubectl apply -f viewer-role.yaml  
+kubectl apply -f viewer-rolebinding.yaml  
+```  
+
+---
+
+### 4. **ClusterRole for Global Viewer**  
+The **Global Viewer** can read all resources across all namespaces.  
+
+**`global-viewer-clusterrole.yaml`**:  
+```yaml  
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: ClusterRole  
+metadata:  
+  name: global-viewer-role  
+rules:  
+- apiGroups: ["*"]  
+  resources: ["*"]  
+  verbs: ["get", "list"]  
+```  
+
+**ClusterRoleBinding for Khagendra Thapa (Global Viewer)**:  
+**`global-viewer-clusterrolebinding.yaml`**:  
+```yaml  
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: ClusterRoleBinding  
+metadata:  
+  name: global-viewer-access  
+subjects:  
+- kind: User  
+  name: Khagendra Thapa  
+  apiGroup: rbac.authorization.k8s.io  
+roleRef:  
+  kind: ClusterRole  
+  name: global-viewer-role  
+  apiGroup: rbac.authorization.k8s.io  
+```  
+
+### Apply Commands:  
+```bash  
+kubectl apply -f global-viewer-clusterrole.yaml  
+kubectl apply -f global-viewer-clusterrolebinding.yaml  
+```  
+
+---
+
+## 🔍 Testing Permissions  
+
+- **Check permissions for `Anshumaan` (Admin)**:  
+  ```bash  
+  kubectl auth can-i create deployment --as Anshumaan -A  
+  ```  
+
+- **Check permissions for `Ashutosh` (Editor)**:  
+  ```bash  
+  kubectl auth can-i update pod --as Ashutosh -n development  
+  ```  
+
+- **Check permissions for `Sai Krishna` (Viewer)**:  
+  ```bash  
+  kubectl auth can-i delete service --as Sai Krishna -n staging  
+  ```  
+
+- **Check permissions for `Khagendra Thapa` (Global Viewer)**:  
+  ```bash  
+  kubectl auth can-i list pod --as Khagendra Thapa -A  
+  ```  
+
+---
+
+## 🛡️ Best Practices  
+
+1. **Use Namespaces to Segregate Environments**:  
+   - Assign specific roles per environment (e.g., `dev`, `staging`, `prod`).  
+
+2. **Grant Minimum Privileges**:  
+   - Follow the principle of least privilege for all users and service accounts.  
+
+3. **Audit Access Regularly**:  
+   - Use `kubectl describe rolebinding` or `kubectl describe clusterrolebinding` to review access assignments.  
+
+4. **Use Service Accounts for Applications**:  
+   - Bind applications to service accounts instead of individual users.  
+
+---
+
+## 🎯 Common Commands for RBAC  
+
+- **List all Roles in a namespace**:  
+  ```bash  
+  kubectl get role -n <namespace>  
+  ```  
+
+- **List all ClusterRoles**:  
+  ```bash  
+  kubectl get clusterrole  
+  ```  
+
+- **List all RoleBindings in a namespace**:  
+  ```bash  
+  kubectl get rolebinding -n <namespace>  
+  ```  
+
+- **List all ClusterRoleBindings**:  
+  ```bash  
+  kubectl get clusterrolebinding  
+  ```  
+
+- **Test user access**:  
+  ```bash  
+  kubectl auth can-i <action> <resource> --as <user> [-n <namespace>]  
+  ```  
+
+---
+
+With this setup, you can manage permissions effectively for all your Kubernetes users based on their roles. 🚀  
   ```
 
 ---
