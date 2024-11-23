@@ -1,6 +1,3 @@
-Here’s a detailed breakdown of the lecture on generating certificates for Kubernetes clusters using OpenSSL, with all steps, proper naming conventions, and actual commands:
-
----
 
 ## **Introduction**
 
