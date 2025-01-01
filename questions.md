@@ -215,7 +215,7 @@ ETCDCTL_API=3 etcdctl snapshot restore /opt/etcd-backup.db --endpoints=<etcd-end
 
 ---
 
-# Question 14 - Create a new user “anshu”. Grant him access to the cluster. User “ajeet” should have permission to create, list, get, update and delete pods. The private key exists at location:​
+# Question 14 - Create a new user “anshu”. Grant him access to the cluster. User “anshu” should have permission to create, list, get, update and delete pods. The private key exists at location:​
 /root/ajeet/.key and csr at /root/anshu.csr
 # Steps:
 openssl genrsa -out /root/ajeet.key 2048
