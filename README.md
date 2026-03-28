@@ -448,3 +448,21 @@ If any of the VMs encounter issues accessing resources, follow these troubleshoo
 By following this guide, you have created three distinct RBAC roles for Admin, General, and Viewer access in Kubernetes. You have configured `kubeconfig.yml` with both certificate and token-based authentication, and spin up VMs to test the access for each role. The troubleshooting section helps ensure that permissions are correctly set and gives you tools to debug any access issues.
 
 
+
+## Overview
+
+This repository contains project code and supporting assets. It is maintained actively with periodic updates.
+
+## Getting Started
+
+1. Clone this repository.
+2. Install dependencies as documented in the project files.
+3. Run/build using the project-specific commands.
+
+## Repository Structure
+
+Key source code, configuration, and documentation are organized by folders at the repository root.
+
+## Contribution Guidelines
+
+Please open an issue for major changes and submit focused pull requests with clear descriptions.
